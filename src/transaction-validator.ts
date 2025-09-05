@@ -19,10 +19,81 @@ export class TransactionValidator {
   validateTransaction(transaction: Transaction): ValidationResult {
     const errors: ValidationError[] = [];
 
-    // STUDENT ASSIGNMENT: Implement the validation logic above
-    // Remove this line and implement the actual validation
-    throw new Error('Transaction validation not implemented - this is your assignment!');
+    const utxos = new Set<string>();
+    let totalInputValue = 0;
+    let totalOutputValue = 0;
 
+    const txDataForSigning = this.createTransactionDataForSigning_(transaction);
+    for (const input of transaction.inputs) {
+      
+      // Existencias de UTXO
+      const utxo = this.utxoPool.getUTXO(input.utxoId.txId, input.utxoId.outputIndex);
+      if (!utxo) {
+        errors.push(
+          createValidationError(
+            VALIDATION_ERRORS.UTXO_NOT_FOUND,
+            `Input UTXO not found: ${input.utxoId}`
+          )
+        );
+        continue;
+      }
+
+      // Verificacion de firma
+      const isSignatureValid = verify(txDataForSigning, input.signature, input.owner);
+      if (!isSignatureValid) {
+        errors.push(
+          createValidationError(
+            VALIDATION_ERRORS.INVALID_SIGNATURE,
+            `Invalid signature for input UTXO: ${input.utxoId}`
+          )
+        );
+      }
+
+      // Prevencion de doble gasto
+      if (utxos.has(JSON.stringify(input.utxoId))) {
+        errors.push(
+          createValidationError(
+            VALIDATION_ERRORS.DOUBLE_SPENDING,
+            `Double spending detected for UTXO: ${input.utxoId}`
+          )
+        );
+      } else {
+        utxos.add(JSON.stringify(input.utxoId));
+      }
+
+      totalInputValue += utxo.amount;
+    }
+
+    for (const output of transaction.outputs) {
+      if (output.amount < 0) {
+        errors.push(
+          createValidationError(
+            VALIDATION_ERRORS.NEGATIVE_AMOUNT,
+            `Output value must be positive: ${output.amount}`
+          )
+        );
+      } else if (output.amount === 0) {
+        errors.push(
+          createValidationError(
+            VALIDATION_ERRORS.ZERO_AMOUNT,
+            `Output value must be greater than zero`
+          )
+        );
+      }
+      totalOutputValue += output.amount;
+    }
+
+    // Verificacion de balance
+    if (totalInputValue !== totalOutputValue) {
+      errors.push(
+        createValidationError(
+          VALIDATION_ERRORS.AMOUNT_MISMATCH,
+          `Total input value (${totalInputValue}) does not total output value (${totalOutputValue})`
+        )
+      );
+    }
+
+    
     return {
       valid: errors.length === 0,
       errors
