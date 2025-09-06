@@ -23,7 +23,6 @@ export class TransactionValidator {
     let totalInputValue = 0;
     let totalOutputValue = 0;
 
-    const txDataForSigning = this.createTransactionDataForSigning_(transaction);
     for (const input of transaction.inputs) {
       
       // Existencias de UTXO
@@ -39,6 +38,7 @@ export class TransactionValidator {
       }
 
       // Verificacion de firma
+      const txDataForSigning = this.createTransactionDataForSigning_(transaction);
       const isSignatureValid = verify(txDataForSigning, input.signature, input.owner);
       if (!isSignatureValid) {
         errors.push(
