@@ -241,6 +241,21 @@ describe('UTXO System Tests', () => {
     });
 
     describe('Edge Cases', () => {
+      test('REQUIRED: should reject negative-amount outputs', () => {
+        const aliceUTXOs = utxoPool.getUTXOsForOwner(alice.publicKey);
+        const transaction = TransactionBuilder.createTransaction(
+          [{ utxo: aliceUTXOs[0], privateKey: alice.privateKey }],
+          [
+            { amount: -1, recipient: bob.publicKey },
+            { amount: 1000, recipient: alice.publicKey }
+          ]
+        );
+
+        const result = validator.validateTransaction(transaction);
+        expect(result.valid).toBe(false);
+        expect(result.errors.some(e => e.code === VALIDATION_ERRORS.NEGATIVE_AMOUNT)).toBe(true);
+      });
+
       test('REQUIRED: should reject zero-amount outputs', () => {
         const aliceUTXOs = utxoPool.getUTXOsForOwner(alice.publicKey);
         const transaction = TransactionBuilder.createTransaction(
@@ -253,7 +268,7 @@ describe('UTXO System Tests', () => {
 
         const result = validator.validateTransaction(transaction);
         expect(result.valid).toBe(false);
-        expect(result.errors.some(e => e.code === VALIDATION_ERRORS.NEGATIVE_AMOUNT)).toBe(true);
+        expect(result.errors.some(e => e.code === VALIDATION_ERRORS.ZERO_AMOUNT)).toBe(true);
       });
     });
 
